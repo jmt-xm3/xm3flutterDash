@@ -1,13 +1,14 @@
-import 'dart:async';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 
 class Reading {
-  final DateTime time;
-  final double speed;
+  String time = "";
+  double speed = 0.0;
+  double altitude = 0.0;
 
-  const Reading({
-    required this.time,
-    required this.speed,
-  });
+  Map<String, dynamic> toMap() {
+    return {
+      'time': time,
+      'speedMps': speed,
+      'altitude': altitude,
+    };
+  }
 }
