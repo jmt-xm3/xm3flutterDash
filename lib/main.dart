@@ -9,40 +9,34 @@ import 'package:google_fonts/google_fonts.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   createTelemetryDatabase();
-  return runApp(GaugeApp());
+  return runApp(SpeedoWidget());
 }
 void createTelemetryDatabase() async {
   final database = openDatabase(
-    // Set the path to the database. Note: Using the `join` function from the
-    // `path` package is best practice to ensure the path is correctly
-    // constructed for each platform.
     join(await getDatabasesPath(), 'telemetry.db'),
     onCreate: (db, version) {
-      // Run the CREATE TABLE statement on the database.
       return db.execute(
         'CREATE TABLE telemetry (id TEXT PRIMARY KEY , speed REAL, altitude REAL)',
       );
     },
-    // Set the version. This executes the onCreate function and provides a
-    // path to perform database upgrades and downgrades.
     version: 1,
   );
   final db = await database;
-  await db.execute('DROP TABLE IF EXISTS telemetry');
+  await db.execute('DROP TABLE IF EXISTS telemetry'); // Reinitialise database every startup
   await db.execute('CREATE TABLE telemetry (time TEXT PRIMARY KEY , speed REAL, altitude REAL)');
 }
-/// Represents the GaugeApp class
-class GaugeApp extends StatelessWidget {
+
+class SpeedoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
         theme: ThemeData(
           brightness: Brightness.dark,
-          primarySwatch: Colors.green,
-          primaryColor: Colors.green,
-          textTheme: GoogleFonts.getTextTheme("Orbitron", TextTheme(
+          primarySwatch: Colors.purple,
+          primaryColor: Colors.purple,
+          textTheme: GoogleFonts.getTextTheme("Orbitron", const TextTheme(
             displayLarge: TextStyle(
-              color: Colors.green,
+              color: Colors.purple,
             ),
           )),
         ),
@@ -64,16 +58,6 @@ class _SpeedometerPageState extends State<SpeedometerPage> {
   double _speedMps = 0.0;
   var _speedMph = "";
 
-  Future<int> _retrieveAverageSpeed() async {
-  final database = await openDatabase(
-  join(await getDatabasesPath(), 'telemetry.db'));
-  final db = database;
-  var speedData = await db.rawQuery('SELECT speed FROM telemetry');
-  List<double> listOfDoubles = speedData.map((map) => map['speed'] as double).toList();
-  double sum = listOfDoubles.reduce((value, element) => value + element);
-  double average = sum / listOfDoubles.length;
-  return average.round();
-  }
 
   Future<void> _updatePosition() async {
     final database = await openDatabase(
@@ -83,7 +67,7 @@ class _SpeedometerPageState extends State<SpeedometerPage> {
       setState(() {
         Geolocator.getPositionStream().listen((pos) {
         });
-        _speedMps = pos.speed; // This is your speed
+        _speedMps = pos.speed; // Speed in metre's per second
         _altitude = pos.altitude;
         _time = DateTime.now().toString();
         _speedMph = (pos.speed * 2.237).round().toString();
@@ -115,20 +99,20 @@ class _SpeedometerPageState extends State<SpeedometerPage> {
   }
 
 
-  Widget _getRadialGauge() {
+  Widget _getSpeedo() {
     return SfRadialGauge(
         axes:
         <RadialAxis>[
           RadialAxis(minimum: 0,
               maximum: 100,
+              ranges: <GaugeRange>[GaugeRange(startValue: 70,
+                  endValue: 100,
+                  color: Colors.red)],
               pointers: <GaugePointer>[
-                NeedlePointer(value: _speedMps*2.237)
+                NeedlePointer(value: _speedMps*2.237) // has to be double cant use _speedMph
               ],
               annotations: <GaugeAnnotation>[
-                GaugeAnnotation(
-                    angle: 90,
-                    positionFactor: 0.85,
-                    widget: Material(
+                GaugeAnnotation(angle: 90, positionFactor: 0.85, widget: Material(
                         child: Text('$_speedMph MPH',style: TextStyle(fontWeight: FontWeight.bold,fontSize: 36.0)))
                 )
               ])
@@ -141,11 +125,11 @@ class _SpeedometerPageState extends State<SpeedometerPage> {
 
     return Column(mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          _getRadialGauge(),
+          _getSpeedo(),
           ElevatedButton(
             onPressed: () {Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const StatsPage()));},
+                MaterialPageRoute(builder: (context) => StatsPage()));},
             child: const Text('Stats Page'),)
         ],
     );
@@ -154,14 +138,70 @@ class _SpeedometerPageState extends State<SpeedometerPage> {
 
 
 
-class StatsPage extends StatelessWidget {
-  const StatsPage({super.key});
+class StatsPage extends StatefulWidget {
+  @override
+  _StatsPageState createState() => _StatsPageState();
+}
+
+class _StatsPageState extends State<StatsPage> {
+  late double topSpeed;
+  late double averageSpeed;
+  late double averageAltitude;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStats();
+  }
+
+  Future<void> fetchStats() async {
+    final Database db = await _openDatabase();
+
+    final List<Map<String, dynamic>> result = await db.query('telemetry');
+    if (result.isNotEmpty) {
+      final List<double> speeds = result.map((row) => row['speed'] as double).toList();
+      final List<double> altitudes = result.map((row) => row['altitude'] as double).toList();
+
+      topSpeed = speeds.reduce((value, element) => value > element ? value : element);
+      averageSpeed = speeds.isNotEmpty ? speeds.reduce((value, element) => value + element) / speeds.length : 0.0;
+      averageAltitude = altitudes.isNotEmpty ? altitudes.reduce((value, element) => value + element) / altitudes.length : 0.0;
+    } else {
+      topSpeed = 0.0;
+      averageSpeed = 0.0;
+      averageAltitude = 0.0;
+    }
+
+    setState(() {});
+  }
+
+  Future<Database> _openDatabase() async {
+    return openDatabase(
+      join(await getDatabasesPath(), 'telemetry.db'),
+      version: 1,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [ElevatedButton(
-      onPressed: () {Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SpeedometerPage()));},child: const Text('Speedo Page'),)]);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Stats Page'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Top Speed (Miles Per Hour): ${(topSpeed*2.237).toStringAsFixed(2)}'),
+            Text('Top Speed (Kilometers per hour): ${(topSpeed*3.6).toStringAsFixed(2)}'),
+            Text('Top Speed (Metres per second): ${topSpeed.toStringAsFixed(2)}'),
+            Text('Average Speed (Miles Per Hour): ${(averageSpeed*2.237).toStringAsFixed(2)}'),
+            Text('Average Speed (Kilometers per hour): ${(averageSpeed*3.6).toStringAsFixed(2)}'),
+            Text('Average Speed (Metres per second): ${averageSpeed.toStringAsFixed(2)}'),
+            Text('Average Altitude: ${averageAltitude.toStringAsFixed(2)}'),
+          ],
+        ),
+      ),
+    );
   }
 }

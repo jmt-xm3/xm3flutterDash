@@ -39,7 +39,6 @@ dependencies:
   path: ^1.8.3
   geolocator: ^10.1.0
   syncfusion_flutter_gauges: ^24.1.45
-  fl_chart: ^0.66.0
   google_fonts: ^6.1.0
 
 dev_dependencies:
