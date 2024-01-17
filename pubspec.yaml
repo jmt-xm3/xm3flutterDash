@@ -57,10 +57,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-  fonts:
-    - family: Orbitron
-      fonts:
-        - asset: assets/Orbitron-VariableFont_wght.ttf
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

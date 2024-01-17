@@ -1,9 +1,7 @@
-# xm3flutterDash
 
 To run this application in android studio:
--Dart SDK
 -Flutter SDK
--Android SDK Platform,  tested on Android SDK API 28 and 34 and successfully compiled
+-Android SDK Platform, API 33.0.0, tested on Android SDK Platform API 28
 -Android SDK Command-line Tools
 -Android SDK Build-Tools
 -Android SDK Platform-Tools
